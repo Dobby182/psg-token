@@ -1,0 +1,16 @@
+name: Supabase keep-alive
+on:
+  schedule:
+    - cron: "0 6 */5 * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        env:
+          SB_URL: ${{ secrets.SUPABASE_URL }}
+          SB_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SB_TABLE: ${{ secrets.SUPABASE_TABLE }}
+        run: |
+          curl -fsS "$SB_URL/rest/v1/$SB_TABLE?limit=1" -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY"

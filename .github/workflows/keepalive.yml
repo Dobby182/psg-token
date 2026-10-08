@@ -13,6 +13,16 @@ jobs:
           SB_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SB_TABLE: ${{ secrets.SUPABASE_TABLE }}
         run: |
-          date -u
-          echo "url length: ${#SB_URL}, key length: ${#SB_KEY}, table: $SB_TABLE"
-          curl -sS -i "$SB_URL/rest/v1/$SB_TABLE?limit=1&marker=ghaction" -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" | grep -iE "^HTTP|sb-project-ref|^\[|^\{"
+          code=$(curl -sS -A "gh-keepalive" -D headers.txt -o body.txt -w "%{http_code}" \
+            "$SB_URL/rest/v1/$SB_TABLE?limit=1" \
+            -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY")
+          echo "UTC: $(date -u)"
+          echo "HTTP: $code"
+          ref=$(grep -i '^sb-project-ref' headers.txt | tr -d '\r')
+          echo "$ref"
+          echo "Body bytes: $(wc -c < body.txt)"
+          if [ "$code" != "200" ] || ! echo "$ref" | grep -q "fjsophsdlvqqcwmsleln"; then
+            echo "Keep-alive FAILED"
+            exit 1
+          fi
+          echo "Keep-alive OK"

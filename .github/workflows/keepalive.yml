@@ -13,4 +13,6 @@ jobs:
           SB_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SB_TABLE: ${{ secrets.SUPABASE_TABLE }}
         run: |
-          curl -fsS "$SB_URL/rest/v1/$SB_TABLE?limit=1" -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY"
+          date -u
+          echo "url length: ${#SB_URL}, key length: ${#SB_KEY}, table: $SB_TABLE"
+          curl -sS -i "$SB_URL/rest/v1/$SB_TABLE?limit=1&marker=ghaction" -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" | grep -iE "^HTTP|sb-project-ref|^\[|^\{"

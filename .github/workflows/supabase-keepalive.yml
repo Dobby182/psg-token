@@ -1,0 +1,87 @@
+﻿name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Supabase
+        env:
+          SB_URL: ${{ secrets.SUPABASE_URL }}
+          SB_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SB_TABLE: ${{ secrets.SUPABASE_TABLE }}
+
+        run: |
+          echo "========================================"
+          echo "       SUPABASE KEEP-ALIVE"
+          echo "========================================"
+
+          echo "UTC: $(date -u)"
+          echo "Attempt: Starting"
+          echo ""
+
+          RESPONSE_FILE=$(mktemp)
+          HEADERS_FILE=$(mktemp)
+
+          set +e
+
+          HTTP_STATUS=$(curl \
+            --silent \
+            --show-error \
+            --user-agent "gh-keepalive" \
+            --dump-header "$HEADERS_FILE" \
+            --output "$RESPONSE_FILE" \
+            --write-out "%{http_code}" \
+            --request GET \
+            "$SB_URL/rest/v1/$SB_TABLE?limit=1" \
+            --header "apikey: $SB_KEY" \
+            --header "Authorization: Bearer $SB_KEY")
+
+          CURL_EXIT_CODE=$?
+
+          set -e
+
+          PROJECT_REF=$(grep -i '^sb-project-ref:' "$HEADERS_FILE" | tr -d '\r' || true)
+          BODY_BYTES=$(wc -c < "$RESPONSE_FILE")
+
+          echo "----------------------------------------"
+          echo "RESULT"
+          echo "----------------------------------------"
+          echo "curl exit code : $CURL_EXIT_CODE"
+          echo "HTTP status    : $HTTP_STATUS"
+          echo "Project ref    : $PROJECT_REF"
+          echo "Body bytes     : $BODY_BYTES"
+
+          if [ "$CURL_EXIT_CODE" -ne 0 ]; then
+            echo ""
+            echo "Status         : FAILED"
+            echo "Error          : curl could not complete the request."
+            echo ""
+            echo "Response:"
+            cat "$RESPONSE_FILE"
+            exit 1
+          fi
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo ""
+            echo "Status         : SUCCESS"
+            echo "Supabase responded successfully."
+          else
+            echo ""
+            echo "Status         : FAILED"
+            echo "Supabase returned HTTP $HTTP_STATUS."
+            echo ""
+            echo "Response:"
+            cat "$RESPONSE_FILE"
+            exit 1
+          fi
+
+          echo ""
+          echo "========================================"
+          echo "       KEEP-ALIVE COMPLETED"
+          echo "========================================"
